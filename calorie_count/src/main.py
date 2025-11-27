@@ -33,7 +33,7 @@ from calorie_count.src.components.food_search import FoodSearchScreen
 from calorie_count.src.DB.food_db import Food, FoodDB
 from calorie_count.src.DB.meal_entry_db import MealEntry, MealEntryDB
 from calorie_count.src.utils import config, consts, xlsx
-from calorie_count.src.utils.plotting import plot_graph, plot_pie_chart
+from calorie_count.src.utils.plotting import plot_graph, plot_pie_chart, fig2img
 from calorie_count.src.utils.utils import sort_by_similarity
 
 
@@ -299,14 +299,16 @@ class CaloriesApp(MDApp):
         for e in entries:
             data[e.date] += e.food.cals
 
-        graph = plot_graph(data, y_label="Calories")
+        graph_fig = plot_graph(data, y_label="Calories")
+        graph = fig2img(graph_fig)
         trends_layout.add_widget(graph)
 
         # -- Adding Graph of sodium
         data = dict.fromkeys((e.date for e in entries), 0)
         for e in entries:
             data[e.date] += e.food.sodium
-        graph = plot_graph(data, y_label="Sodium")
+        graph_fig = plot_graph(data, y_label="Sodium")
+        graph = fig2img(graph_fig)
         trends_layout.add_widget(graph)
 
         # -- Adding Pie Chart
@@ -315,7 +317,8 @@ class CaloriesApp(MDApp):
             "Carbs": sum(e.food.carbs for e in entries),
             "Fats": sum(e.food.fats for e in entries),
         }
-        pie_chart = plot_pie_chart(data)
+        pie_chart_fig = plot_pie_chart(data)
+        pie_chart = fig2img(pie_chart_fig)
         trends_layout.add_widget(pie_chart)
 
     def on_search_food_pressed(self, *_, query: str = "", **kwargs):
