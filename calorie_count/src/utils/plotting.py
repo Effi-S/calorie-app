@@ -13,19 +13,69 @@ Building Notes:
 from __future__ import annotations
 
 # from calorie_count.lib.kmplot.backend_kivyagg import FigureCanvasKivyAgg
+import os
+# Set environment variables BEFORE importing matplotlib to prevent font initialization segfaults
+os.environ.setdefault('MPLBACKEND', 'Agg')
+# Prevent matplotlib from trying to initialize fonts which can cause segfaults
+os.environ.setdefault('MPLCONFIGDIR', '/tmp/matplotlib-config')
+# Disable font cache to prevent segfaults
+os.environ.setdefault('MPL_FONTCONFIG', '0')
+
+# Set matplotlib backend BEFORE importing pyplot to avoid GUI initialization
+# Use Agg backend which doesn't require a display
+import matplotlib
+matplotlib.use('Agg', force=True)  # Force Agg backend before importing pyplot
+
+# Suppress font cache warnings that can cause issues
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib')
+warnings.filterwarnings('ignore', message='.*findfont.*', category=UserWarning)
+
+# Disable font manager warnings/initialization that can cause segfaults
+try:
+    # Set font properties before pyplot import to avoid font manager initialization
+    matplotlib.rcParams['font.family'] = 'DejaVu Sans'
+    matplotlib.rcParams['font.sans-serif'] = ['DejaVu Sans']
+except Exception:
+    pass  # Ignore font setup errors
+
 import matplotlib.pyplot as plt
-from kivy.graphics.texture import Texture
-from kivy.uix.image import Image
+# Disable font manager after import to prevent further font operations
+try:
+    plt.rcParams['font.family'] = 'DejaVu Sans'
+except Exception:
+    pass
+
+# Import Kivy components - these may cause segfaults in headless environments
+# but are required for the plotting functions
+try:
+    from kivy.graphics.texture import Texture
+    from kivy.uix.image import Image
+except (ImportError, RuntimeError, SystemError) as e:
+    # If Kivy can't be imported or initialized, we can't use these functions
+    # This will cause an error if someone tries to use the plotting functions
+    # but prevents segfaults during import
+    Texture = None
+    Image = None
 
 
 def fig2img(fig):
     fig.canvas.draw()
     width, height = fig.canvas.get_width_height()
-    raw_data = fig.canvas.tostring_rgb()
+    
+    # Use buffer_rgba instead of deprecated tostring_rgb
+    try:
+        # Try the new method first (Matplotlib 3.8+)
+        raw_data = fig.canvas.buffer_rgba()
+        colorfmt = "rgba"
+    except AttributeError:
+        # Fallback to old method for older matplotlib versions
+        raw_data = fig.canvas.tostring_rgb()
+        colorfmt = "rgb"
 
     # Create a Kivy texture and load the raw data
-    texture = Texture.create(size=(width, height), colorfmt="rgb")
-    texture.blit_buffer(raw_data, colorfmt="rgb", bufferfmt="ubyte")
+    texture = Texture.create(size=(width, height), colorfmt=colorfmt)
+    texture.blit_buffer(raw_data, colorfmt=colorfmt, bufferfmt="ubyte")
     texture.flip_vertical()  # Flip the texture for correct orientation in Kivy
 
     # Display the texture in a Kivy Image widget

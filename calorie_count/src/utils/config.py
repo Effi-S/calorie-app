@@ -24,7 +24,7 @@ def set_theme(theme_style: str,
         'primary_palette': primary_palette,
         'accent_palette': accent_palette,
     }
-    with open(CONFIG, 'w+') as fl:
+    with open(config_path, 'w+') as fl:
         parser.write(fl)
 
 
@@ -51,16 +51,29 @@ def _set_db_path(path: str = 'calorie_app.db', config_path: str = CONFIG):
 
 
 def set_db_path_test(config_path: str = CONFIG) -> str:
-    """Change the config.ini to have a test database path"""
+    """Change the config.ini to have a test database path.
+    Creates test database in a temporary directory to avoid polluting the project root.
+    """
+    import tempfile
     parser = configparser.ConfigParser()
     parser.read(config_path)
-    path = f'test_{uuid.uuid4()}.db'
-    _set_db_path(path)
+    
+    # Create test database in temp directory instead of project root
+    temp_dir = tempfile.gettempdir()
+    path = os.path.join(temp_dir, f'test_{uuid.uuid4()}.db')
+    _set_db_path(path, config_path=config_path)
 
     # --2-- registering the removal of the test database at the end of run
-    def _at_exit(_path=path):
-        os.remove(_path)
-        _set_db_path(config_path=config_path)  # Set to default
+    def _at_exit(_path=path, _config_path=config_path):
+        if os.path.exists(_path):
+            try:
+                os.remove(_path)
+            except (OSError, PermissionError):
+                # Ignore errors if file is locked or already deleted
+                pass
+        # Only reset config if the config file still exists (might be temp file in tests)
+        if os.path.exists(_config_path):
+            _set_db_path('calorie_app.db', config_path=_config_path)  # Set to default
 
     atexit.register(_at_exit)
 

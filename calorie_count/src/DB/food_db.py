@@ -2,12 +2,15 @@
 Parameters to and from this DB are passed with instances of the  dataclass "Food". """
 from __future__ import annotations
 
-import sqlite3
 from dataclasses import dataclass, field, astuple, asdict
 from datetime import datetime as dt
-from typing import Iterable, Any, Optional
+from typing import Iterable, Optional
+
+from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_
 
 from calorie_count.src.utils import config
+from calorie_count.src.DB.models import FoodModel, get_session, create_tables
 
 
 @dataclass
@@ -42,91 +45,134 @@ class Food:
             'Sugar (g)', 'Sodium (mg)', 'Water (g)', 'Calories'
 
     @property
-    def values(self) -> tuple[float, ...] | tuple[float | Any, ...]:
+    def values(self) -> tuple[float, ...] | tuple[float | any, ...]:
         """Get all the Values in the Food to represent to the customer."""
         return astuple(self)[:-1] + (self.cals,)  # everything but "id" + calories
+
+    @classmethod
+    def from_model(cls, model: FoodModel) -> 'Food':
+        """Create Food dataclass from SQLAlchemy model."""
+        return cls(
+            name=model.name or '',
+            portion=model.portion or 0,
+            proteins=model.protein or 0,
+            fats=model.fats or 0,
+            carbs=model.carbs or 0,
+            sugar=model.sugar or 0,
+            sodium=model.sodium or 0,
+            water=model.water or 0,
+            id=model.id or ''
+        )
+
+    def to_model(self) -> FoodModel:
+        """Convert Food dataclass to SQLAlchemy model."""
+        return FoodModel(
+            name=self.name,
+            portion=self.portion,
+            protein=self.proteins,
+            fats=self.fats,
+            carbs=self.carbs,
+            sugar=self.sugar,
+            sodium=self.sodium,
+            water=self.water,
+            id=self.id
+        )
 
 
 class FoodDB:
     def __init__(self, db_path: str = None):
-        db_path = db_path or config.get_db_path()
-        # Connect to DB (or create one if none exists)
-        self.conn = sqlite3.connect(db_path, timeout=15)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute('''CREATE TABLE if not exists food(
-                                name text PRIMARY KEY,
-                                portion real,
-                                protein real,
-                                fats real,
-                                carbs real,
-                                sugar real,
-                                sodium real, 
-                                water real,
-                                id text
-                            )''')
-        self.conn.commit()
+        self.db_path = db_path or config.get_db_path()
+        # Create tables if they don't exist
+        create_tables(self.db_path)
+        self._session: Optional[Session] = None
 
     def __enter__(self, *a, **k):
+        self._session = get_session(self.db_path)
         return self
 
     def __exit__(self, *a, **k):
-        self.conn.close()
+        if self._session:
+            self._session.close()
+            self._session = None
+
+    @property
+    def session(self) -> Session:
+        """Get current session, creating one if needed."""
+        if self._session is None:
+            self._session = get_session(self.db_path)
+        return self._session
 
     def get_all_foods(self) -> list[Food]:
-        self.cursor.execute("SELECT * FROM food")
-        return [Food(*x) for x in self.cursor.fetchall() if x and x[0]]
+        """Get all foods from the database."""
+        foods = self.session.query(FoodModel).filter(FoodModel.name != '').all()
+        return [Food.from_model(f) for f in foods if f.name]
 
     def get_all_food_names(self) -> list[str]:
-        self.cursor.execute("SELECT name FROM food")
-        return [str(x) for f in self.cursor.fetchall() for x in f if x]
+        """Get all food names from the database."""
+        names = self.session.query(FoodModel.name).filter(FoodModel.name != '').all()
+        return [str(name[0]) for name in names if name[0]]
 
-    def get_food_by_name(self, name: str):
-        cmd = f" SELECT * FROM food  WHERE `name` = '{name}'"
-        self.cursor.execute(cmd)
-        return Food(*(self.cursor.fetchone() or ()))
+    def get_food_by_name(self, name: str) -> Food:
+        """Get food by name."""
+        food_model = self.session.query(FoodModel).filter(FoodModel.name == name).first()
+        if food_model:
+            return Food.from_model(food_model)
+        # Return empty Food if not found (maintaining backward compatibility)
+        return Food('', 0, 0, 0, 0, 0, 0, 0)
 
-    def get_food_by_id(self, id_: str):
-        cmd = f" SELECT * FROM food WHERE `id` = '{id_}'"
-        self.cursor.execute(cmd)
-        return Food(*self.cursor.fetchone())
+    def get_food_by_id(self, id_: str) -> Food:
+        """Get food by ID."""
+        food_model = self.session.query(FoodModel).filter(FoodModel.id == id_).first()
+        if food_model:
+            return Food.from_model(food_model)
+        # Return empty Food if not found (maintaining backward compatibility)
+        return Food('', 0, 0, 0, 0, 0, 0, 0)
 
     def add_food(self, food: Food, update: bool = False):
-        """update => existing Foods are updated"""
-        or_update = 'OR UPDATE' if update else ''
-        cmd = f'INSERT {or_update} INTO food Values {astuple(food)}'
-        self.cursor.execute(cmd, asdict(food))
-        self.conn.commit()
+        """Add or update food in the database."""
+        food_model = self.session.query(FoodModel).filter(FoodModel.name == food.name).first()
+        
+        if food_model and update:
+            # Update existing food
+            food_model.portion = food.portion
+            food_model.protein = food.proteins
+            food_model.fats = food.fats
+            food_model.carbs = food.carbs
+            food_model.sugar = food.sugar
+            food_model.sodium = food.sodium
+            food_model.water = food.water
+            food_model.id = food.id
+        elif not food_model:
+            # Insert new food
+            food_model = food.to_model()
+            self.session.add(food_model)
+        
+        self.session.commit()
 
-    def remove(self, names: Optional[str, list[str]]) -> None:
+    def remove(self, names: Optional[str | list[str]]) -> None:
+        """Remove foods by name(s)."""
         if isinstance(names, str):
             names = [names]
         if not names:
             return
 
-        def it2str(tp: Iterable):
-            """Helper function  - parses iterable to SQL string"""
-            return '({})'.format(','.join(f"'{x}'" for x in tp))
-
-        # -- CHECK FOR references in Entries
-        cmd = f"""SELECT name FROM food
-                    inner join meal_entries  
-                  WHERE meal_entries.meal_id = food.id
-                    AND name in {it2str(names)}"""
-        self.cursor.execute(cmd)
-        to_clear_name = [x for tp in self.cursor.fetchall() for x in tp]
+        # Check for references in meal_entries
+        from calorie_count.src.DB.models import MealEntryModel
+        referenced_query = self.session.query(FoodModel.name).join(
+            MealEntryModel, MealEntryModel.meal_id == FoodModel.id
+        ).filter(FoodModel.name.in_(names))
+        referenced_names = referenced_query.all()
+        
+        to_clear_name = [name[0] for name in referenced_names if name[0]]
         to_delete = [n for n in names if n not in to_clear_name]
 
         if to_delete:
-            cmd = f"""DELETE FROM food 
-                    WHERE `name` in {it2str(to_delete)};"""
-            print(cmd)
-            self.cursor.execute(cmd)
-            self.conn.commit()
+            self.session.query(FoodModel).filter(FoodModel.name.in_(to_delete)).delete(synchronize_session=False)
+            self.session.commit()
 
         if to_clear_name:
-            cmd = f"""UPDATE food
-                        SET name = ''
-                      WHERE name in {it2str(to_clear_name)};"""
-            print(cmd)
-            self.cursor.execute(cmd)
-            self.conn.commit()
+            # Clear name instead of deleting (food is referenced)
+            self.session.query(FoodModel).filter(FoodModel.name.in_(to_clear_name)).update(
+                {FoodModel.name: ''}, synchronize_session=False
+            )
+            self.session.commit()

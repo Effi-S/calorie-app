@@ -81,12 +81,12 @@ class DailyScreen(ScrollView):
                     entry_list,
                     entry,
                     text=text,
-                    font_name=str(ARIAL),
+                    font_style="H6",
                     secondary_text=f"Calories: {entry.food.cals: .2f}",
                 )
             )
 
-    def get_day(self) -> date:
+    def get_day(self) -> date: #type: ignore
         """Get a date object parsed from the label displayed in Daily screen"""
         text = self.ids.total_cals_header_label.text
         if "today" in text.lower():

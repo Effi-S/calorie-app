@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 from kivymd.toast import toast
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.button import MDFillRoundFlatIconButton
@@ -29,7 +31,7 @@ class FloatMDTextField(MDTextField):
 class FoodAddDialog(MDDialog):
     """A dialog/pop-up asking the user to add a new Food."""
 
-    last_submission: Food = None  # Here we can store the last Food submission
+    last_submission: Optional[Food] = None  # Here we can store the last Food submission
 
     def __init__(self, app, back_dialog=None, allow_nameless: bool = False, **kwargs):
 
