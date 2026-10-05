@@ -3,3 +3,15 @@
 .idea
 calorie_count.egg-info/
 build
+
+# Build / packaging artifacts
+*.apk
+bin/
+.buildozer/
+
+# Local databases (do not track)
+*.db
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/

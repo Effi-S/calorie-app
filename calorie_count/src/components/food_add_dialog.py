@@ -1,9 +1,7 @@
 """This Module holds a class FoodAddDialog
-    - The dialog/pop-up of our calorie App that asks the user to input a new food."""
+- The dialog/pop-up of our calorie App that asks the user to input a new food."""
 
 from __future__ import annotations
-
-from typing import Optional
 
 from kivymd.toast import toast
 from kivymd.uix.boxlayout import MDBoxLayout
@@ -31,7 +29,7 @@ class FloatMDTextField(MDTextField):
 class FoodAddDialog(MDDialog):
     """A dialog/pop-up asking the user to add a new Food."""
 
-    last_submission: Optional[Food] = None  # Here we can store the last Food submission
+    last_submission: Food | None = None  # Here we can store the last Food submission
 
     def __init__(self, app, back_dialog=None, allow_nameless: bool = False, **kwargs):
 
@@ -70,14 +68,10 @@ class FoodAddDialog(MDDialog):
         )
 
         inner_content = MDGridLayout(cols=2)
-        self.protein = FloatMDTextField(
-            hint_text="Proteins (g)", icon_right="food-steak"
-        )
+        self.protein = FloatMDTextField(hint_text="Proteins (g)", icon_right="food-steak")
         self.fats = FloatMDTextField(hint_text="Fats (g)", icon_right="fish")
         self.carbs = FloatMDTextField(hint_text="Carbs (g)", icon_right="pasta")
-        self.water = FloatMDTextField(
-            hint_text="Water (g)", icon_right="water-outline", text="0"
-        )
+        self.water = FloatMDTextField(hint_text="Water (g)", icon_right="water-outline", text="0")
         self.sugar = FloatMDTextField(
             hint_text="Sugar (g)", icon_right="food-apple-outline", text="0"
         )

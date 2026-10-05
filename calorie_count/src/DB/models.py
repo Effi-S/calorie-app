@@ -1,10 +1,9 @@
 """SQLAlchemy models for the calorie counting app."""
+
 from __future__ import annotations
 
-from datetime import datetime as dt
-from sqlalchemy import Column, String, Float, Text, create_engine, func
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
-from typing import Optional
+from sqlalchemy import Column, Float, String, Text, create_engine
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from calorie_count.src.utils import config
 
@@ -13,7 +12,8 @@ Base = declarative_base()
 
 class FoodModel(Base):
     """SQLAlchemy model for Food table."""
-    __tablename__ = 'food'
+
+    __tablename__ = "food"
 
     name = Column(String, primary_key=True)
     portion = Column(Float, default=0)
@@ -31,7 +31,8 @@ class FoodModel(Base):
 
 class MealEntryModel(Base):
     """SQLAlchemy model for MealEntry table."""
-    __tablename__ = 'meal_entries'
+
+    __tablename__ = "meal_entries"
 
     id = Column(String, primary_key=True)
     meal_id = Column(String)
@@ -44,7 +45,8 @@ class MealEntryModel(Base):
 
 class ExternalFoodModel(Base):
     """SQLAlchemy model for External Foods table."""
-    __tablename__ = 'foods'
+
+    __tablename__ = "foods"
 
     description = Column(Text, primary_key=True)
     portions = Column(Text)
@@ -64,19 +66,17 @@ _engines = {}
 _sessions = {}
 
 
-def get_engine(db_path: Optional[str] = None) -> create_engine:
+def get_engine(db_path: str | None = None) -> create_engine:
     """Get or create SQLAlchemy engine for a database path."""
     db_path = db_path or config.get_db_path()
     if db_path not in _engines:
         _engines[db_path] = create_engine(
-            f'sqlite:///{db_path}',
-            connect_args={'timeout': 15},
-            echo=False
+            f"sqlite:///{db_path}", connect_args={"timeout": 15}, echo=False
         )
     return _engines[db_path]
 
 
-def get_session(db_path: Optional[str] = None) -> Session:
+def get_session(db_path: str | None = None) -> Session:
     """Get or create SQLAlchemy session for a database path."""
     db_path = db_path or config.get_db_path()
     if db_path not in _sessions:
@@ -86,7 +86,7 @@ def get_session(db_path: Optional[str] = None) -> Session:
     return _sessions[db_path]()
 
 
-def create_tables(db_path: Optional[str] = None):
+def create_tables(db_path: str | None = None):
     """Create all tables in the database."""
     engine = get_engine(db_path)
     Base.metadata.create_all(engine)

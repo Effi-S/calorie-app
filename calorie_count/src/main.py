@@ -1,6 +1,6 @@
 """This module holds:
-    1. Initialization of our Calorie App.
-    2. Events referenced by .kv files."""
+1. Initialization of our Calorie App.
+2. Events referenced by .kv files."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from datetime import timedelta
 # from calorie_count.src.consts import ARIAL
 
 try:
-    import kivy
+    pass
 except (Exception,):
     os.environ["KIVY_GL_BACKEND"] = "angle_sdl2"  # (debug w/ Windows + GPU)
 from kivy.clock import Clock
@@ -33,7 +33,7 @@ from calorie_count.src.components.food_search import FoodSearchScreen
 from calorie_count.src.DB.food_db import Food, FoodDB
 from calorie_count.src.DB.meal_entry_db import MealEntry, MealEntryDB
 from calorie_count.src.utils import config, consts, xlsx
-from calorie_count.src.utils.plotting import plot_graph, plot_pie_chart, fig2img
+from calorie_count.src.utils.plotting import fig2img, plot_graph, plot_pie_chart
 from calorie_count.src.utils.utils import sort_by_similarity
 
 
@@ -67,9 +67,7 @@ class CaloriesApp(MDApp):
         self.root.ids.screen_manager.add_widget(self.food_search_screen)
 
         # setting entry date to today
-        self.root.ids.entry_add_screen.ids.date_input.text = (
-            f"Date:\n{dt.now().date().isoformat()}"
-        )
+        self.root.ids.entry_add_screen.ids.date_input.text = f"Date:\n{dt.now().date().isoformat()}"
 
     def _switch_tab(self, name: str = "add_entry"):
         """Helper for switching the current tab."""
@@ -110,9 +108,7 @@ class CaloriesApp(MDApp):
             self.add_food_dialog = FoodAddDialog(self)
         self.add_food_dialog.open()
 
-    def on_trends_pressed(
-        self, *args, _once=[]
-    ):  # Mutable default parameter on purpose
+    def on_trends_pressed(self, *args, _once=[]):  # Mutable default parameter on purpose
         """Event when entering the "Trends" screen"""
         if not _once:
             # Setting the Dates in trends between today and 7 days ago
@@ -201,9 +197,7 @@ class CaloriesApp(MDApp):
                 title=f'"{name}" not in Foods',
                 text="Try One of the options below:",
                 buttons=[
-                    MDFillRoundFlatIconButton(
-                        text="Search", icon="magnify", on_press=start_search
-                    ),
+                    MDFillRoundFlatIconButton(text="Search", icon="magnify", on_press=start_search),
                     MDFillRoundFlatIconButton(
                         text="Add new", icon="plus", on_press=open_plus_dialog
                     ),
@@ -271,23 +265,13 @@ class CaloriesApp(MDApp):
         start_date = end_date - timedelta(days=days_back)
         start_button = self.root.ids.trends_screen.ids.trend_start_date_button
         end_button = self.root.ids.trends_screen.ids.trend_end_date_button
-        start_button.text = "\n".join(
-            (start_button.text.splitlines()[0], start_date.isoformat())
-        )
-        end_button.text = "\n".join(
-            (end_button.text.splitlines()[0], end_date.isoformat())
-        )
+        start_button.text = "\n".join((start_button.text.splitlines()[0], start_date.isoformat()))
+        end_button.text = "\n".join((end_button.text.splitlines()[0], end_date.isoformat()))
 
     def generate_trend(self, *args, **kwargs):
         # -- Getting The relevant entries
-        start_date = (
-            self.root.ids.trends_screen.ids.trend_start_date_button.text.splitlines()[
-                -1
-            ]
-        )
-        end_date = (
-            self.root.ids.trends_screen.ids.trend_end_date_button.text.splitlines()[-1]
-        )
+        start_date = self.root.ids.trends_screen.ids.trend_start_date_button.text.splitlines()[-1]
+        end_date = self.root.ids.trends_screen.ids.trend_end_date_button.text.splitlines()[-1]
 
         with MealEntryDB() as me_db:
             entries = me_db.get_entries_between_dates(str(start_date), str(end_date))
@@ -353,9 +337,7 @@ class CaloriesApp(MDApp):
                 dialog = MDDialog(
                     text=f"Are you sure you want to Save:\n{target}?",
                     buttons=[
-                        MDFlatButton(
-                            text="CANCEL", on_press=lambda *a_, **k_: dialog.dismiss()
-                        ),
+                        MDFlatButton(text="CANCEL", on_press=lambda *a_, **k_: dialog.dismiss()),
                         MDFlatButton(text="SAVE", on_press=_save),
                     ],
                     on_dismiss=lambda *a_: file_manager.close(),
@@ -374,9 +356,7 @@ class CaloriesApp(MDApp):
                 dialog = MDDialog(
                     text=f"Are you sure you want to Load:\n{fl}?",
                     buttons=[
-                        MDFlatButton(
-                            text="CANCEL", on_press=lambda *a_, **k_: dialog.dismiss()
-                        ),
+                        MDFlatButton(text="CANCEL", on_press=lambda *a_, **k_: dialog.dismiss()),
                         MDFlatButton(text="LOAD", on_press=_load),
                     ],
                     on_dismiss=lambda *a_: file_manager.close(),
