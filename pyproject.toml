@@ -6,14 +6,45 @@ build-backend = "setuptools.build_meta"
 name = "calorie_count"
 version = "1.0.0"
 readme = "README.md"
+requires-python = ">=3.10"
 dependencies = [
     "kivy>=2.3.0",
     "kivymd==1.2.0",
     "sqlalchemy>=2.0.36",
     "matplotlib==3.9.2",
     "openpyxl==3.1.5",
-    "pylint==3.3.1"
 ]
 
 [project.scripts]
 calorie-app = "calorie_count.__main__:main"
+
+# Development dependencies (PEP 735). Install with: uv sync
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+    "pytest>=8.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+# Match the layout: linting the package, excluding generated/vendored assets.
+extend-exclude = ["calorie_count/lib", "*.kv"]
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes (unused imports/vars, undefined names)
+    "I",  # isort (import sorting)
+    "UP", # pyupgrade (modern syntax)
+]
+# Line length is managed by the formatter; it won't split long strings/comments.
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# matplotlib backend must be selected before pyplot is imported (see file header).
+"calorie_count/src/utils/plotting.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["calorie_count/tests/unit_tests"]
+python_files = ["test_*.py"]

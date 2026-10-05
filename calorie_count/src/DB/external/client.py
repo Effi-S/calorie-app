@@ -1,19 +1,19 @@
 """External foods database using SQLAlchemy."""
+
 from __future__ import annotations
 
 import atexit
-from dataclasses import asdict, astuple, dataclass
+from collections.abc import Generator
+from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Generator, Optional
 
-from sqlalchemy import Column, func
+from sqlalchemy import Column
 from sqlalchemy.orm import Session
 
 from calorie_count.src.DB.models import (
     ExternalFoodModel,
     create_tables,
-    get_engine,
     get_session,
 )
 
@@ -25,26 +25,29 @@ def similarity(a: str, b: str) -> float:
 
 @dataclass
 class FoodData:
-    """This class represents a Searchable Food """
-    description: str   | Column[str]
-    portions:    str   | Column[str]   # string representation of mapping portion to quantity(g)  e.x - 'cup:30,bowl:100'...
-    protein:     float | Column[float]
-    fats:        float | Column[float]
-    carbs:       float | Column[float]
-    sodium:      float | Column[float]
-    sugar:       float | Column[float]
-    water:       float | Column[float]
-    
+    """This class represents a Searchable Food"""
+
+    description: str | Column[str]
+    portions: (
+        str | Column[str]
+    )  # string representation of mapping portion to quantity(g)  e.x - 'cup:30,bowl:100'...
+    protein: float | Column[float]
+    fats: float | Column[float]
+    carbs: float | Column[float]
+    sodium: float | Column[float]
+    sugar: float | Column[float]
+    water: float | Column[float]
+
     def __post_init__(self):
-        self.description = self.description.replace('"', '')
+        self.description = self.description.replace('"', "")
 
     def portions_dict(self) -> dict[str, float]:
         """Parse portions string into dictionary."""
         result = {}
         if bool(self.portions):
-            for item in self.portions.split(','):
-                if ':' in item:
-                    key, value = item.split(':', 1)
+            for item in self.portions.split(","):
+                if ":" in item:
+                    key, value = item.split(":", 1)
                     try:
                         result[key.strip()] = float(value.strip())
                     except ValueError:
@@ -52,7 +55,7 @@ class FoodData:
         return result
 
     @classmethod
-    def from_model(cls, model: ExternalFoodModel) -> 'FoodData':
+    def from_model(cls, model: ExternalFoodModel) -> FoodData:
         """Create FoodData from SQLAlchemy model."""
         return cls(
             description=model.description,
@@ -62,7 +65,7 @@ class FoodData:
             carbs=model.carbs or 0,
             sodium=model.sodium or 0,
             sugar=model.sugar or 0,
-            water=model.water or 0
+            water=model.water or 0,
         )
 
     def to_model(self) -> ExternalFoodModel:
@@ -75,24 +78,24 @@ class FoodData:
             carbs=self.carbs,
             sodium=self.sodium,
             sugar=self.sugar,
-            water=self.water
+            water=self.water,
         )
 
 
 class ExternalFoodsDB:
     def __init__(self, locally: bool = False):
-        path = next(iter(Path().glob('**/external_foods')), None)
+        path = next(iter(Path().glob("**/external_foods")), None)
         assert path, 'Could not find "external_foods" file'
         self.db_path = str(path)
-        
+
         # Create tables if they don't exist
         create_tables(self.db_path)
-        
+
         # Register custom similarity function for SQLite
         # This needs to be done per connection, so we'll do it in get_session
         # For now, we'll handle similarity in Python instead of SQL
-        
-        self._session: Optional[Session] = None
+
+        self._session: Session | None = None
         atexit.register(lambda: self._cleanup())
 
     def _cleanup(self):
@@ -119,10 +122,12 @@ class ExternalFoodsDB:
 
     def add_food(self, food: FoodData):
         """Add a food to the external foods database."""
-        food_model = self.session.query(ExternalFoodModel).filter(
-            ExternalFoodModel.description == food.description
-        ).first()
-        
+        food_model = (
+            self.session.query(ExternalFoodModel)
+            .filter(ExternalFoodModel.description == food.description)
+            .first()
+        )
+
         if not food_model:
             food_model = food.to_model()
             self.session.add(food_model)
@@ -139,10 +144,13 @@ class ExternalFoodsDB:
             add those that are > 0.9 ratio.
             (Note: SQLite has 'editdist3' but I don't think it can work on android)"""
         # First, try LIKE search
-        foods = self.session.query(ExternalFoodModel).filter(
-            ExternalFoodModel.description.like(f'%{name}%')
-        ).limit(max_results).all()
-        
+        foods = (
+            self.session.query(ExternalFoodModel)
+            .filter(ExternalFoodModel.description.like(f"%{name}%"))
+            .limit(max_results)
+            .all()
+        )
+
         count = 0
         for food_model in foods:
             yield FoodData.from_model(food_model)
@@ -155,10 +163,10 @@ class ExternalFoodsDB:
             all_foods = self.session.query(ExternalFoodModel).all()
             similar_foods = []
             for food_model in all_foods:
-                if similarity(food_model.description, name) >= 0.9: # type: ignore
+                if similarity(food_model.description, name) >= 0.9:  # type: ignore
                     similar_foods.append(food_model)
                     if len(similar_foods) >= (max_results - count):
                         break
-            
+
             for food_model in similar_foods:
                 yield FoodData.from_model(food_model)

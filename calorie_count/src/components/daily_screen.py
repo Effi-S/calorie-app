@@ -1,14 +1,12 @@
 import re
-from datetime import date
+from datetime import date, timedelta
 from datetime import datetime as dt
-from datetime import timedelta
 
 from kivy.clock import Clock
 from kivy.uix.scrollview import ScrollView
 from kivymd.toast import toast
 from kivymd.uix.list import IconRightWidget, MDList, TwoLineAvatarIconListItem
 
-from calorie_count.src.consts import ARIAL
 from calorie_count.src.DB.meal_entry_db import MealEntry, MealEntryDB
 
 
@@ -18,9 +16,7 @@ class ListEntry(TwoLineAvatarIconListItem):
     def __init__(self, entry_list: MDList, entry: MealEntry, **kwargs):
         self.entry_list = entry_list
         self.entry_id = entry.id
-        self.delete_icon = IconRightWidget(
-            icon="delete", on_release=self.on_del_icon_pressed
-        )
+        self.delete_icon = IconRightWidget(icon="delete", on_release=self.on_del_icon_pressed)
         self.is_icon_hidden = True
         super().__init__(
             **kwargs,
@@ -50,7 +46,6 @@ class ListEntry(TwoLineAvatarIconListItem):
 
 
 class DailyScreen(ScrollView):
-
     def update(self, day: date = dt.now().date()):
         """Given the App (as reference), clears and re-loads the Daily screen.
         Loads the Entries based on the date given. Default date is today"""
@@ -58,9 +53,7 @@ class DailyScreen(ScrollView):
         # -- Set label
         today, one_day = dt.now().date(), timedelta(days=1)
         day_lbl = (
-            "Today"
-            if day == today
-            else "Yesterday" if day == today - one_day else day.isoformat()
+            "Today" if day == today else "Yesterday" if day == today - one_day else day.isoformat()
         )
         self.ids.total_cals_header_label.text = f"Total Calories {day_lbl}"
 
@@ -86,7 +79,7 @@ class DailyScreen(ScrollView):
                 )
             )
 
-    def get_day(self) -> date: #type: ignore
+    def get_day(self) -> date:  # type: ignore
         """Get a date object parsed from the label displayed in Daily screen"""
         text = self.ids.total_cals_header_label.text
         if "today" in text.lower():

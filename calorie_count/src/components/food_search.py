@@ -1,5 +1,5 @@
 """This Module holds a class FoodAddDialog
-    - The dialog/pop-up of our calorie App that asks the user to input a new food."""
+- The dialog/pop-up of our calorie App that asks the user to input a new food."""
 
 from __future__ import annotations
 
