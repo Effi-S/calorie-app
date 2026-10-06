@@ -139,11 +139,20 @@ class FoodDB:
         return Food("", 0, 0, 0, 0, 0, 0, 0)
 
     def add_food(self, food: Food, update: bool = False):
-        """Add or update food in the database."""
-        food_model = self.session.query(FoodModel).filter(FoodModel.name == food.name).first()
+        """Add or update food in the database.
 
-        if food_model and update:
-            # Update existing food
+        Keyed on `id` (the primary key). An existing row is updated when `update`
+        is set, or when its name differs from the incoming food -- the latter
+        resurrects a soft-deleted row (one whose name was blanked by remove()).
+        """
+        food_model = self.session.query(FoodModel).filter(FoodModel.id == food.id).first()
+
+        if food_model is None:
+            # Insert new food
+            self.session.add(food.to_model())
+        elif update or food_model.name != food.name:
+            # Update existing food (or restore a soft-deleted one)
+            food_model.name = food.name
             food_model.portion = food.portion
             food_model.protein = food.proteins
             food_model.fats = food.fats
@@ -151,11 +160,6 @@ class FoodDB:
             food_model.sugar = food.sugar
             food_model.sodium = food.sodium
             food_model.water = food.water
-            food_model.id = food.id
-        elif not food_model:
-            # Insert new food
-            food_model = food.to_model()
-            self.session.add(food_model)
 
         self.session.commit()
 

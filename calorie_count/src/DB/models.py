@@ -15,7 +15,11 @@ class FoodModel(Base):
 
     __tablename__ = "food"
 
-    name = Column(String, primary_key=True)
+    # `id` is the primary key: meal entries reference foods by id (see MealEntryModel.meal_id),
+    # and soft-deleting a referenced food blanks its `name` to '' (see FoodDB.remove). `name`
+    # must therefore allow duplicates/blanks, so it cannot be the primary key.
+    id = Column(String, primary_key=True)
+    name = Column(String, index=True, default="")
     portion = Column(Float, default=0)
     protein = Column(Float, default=0)
     fats = Column(Float, default=0)
@@ -23,7 +27,6 @@ class FoodModel(Base):
     sugar = Column(Float, default=0)
     sodium = Column(Float, default=0)
     water = Column(Float, default=0)
-    id = Column(String)
 
     def __repr__(self):
         return f"<FoodModel(name='{self.name}', id='{self.id}')>"
