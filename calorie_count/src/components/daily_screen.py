@@ -4,45 +4,60 @@ from datetime import datetime as dt
 
 from kivy.clock import Clock
 from kivy.uix.scrollview import ScrollView
-from kivymd.toast import toast
-from kivymd.uix.list import IconRightWidget, MDList, TwoLineAvatarIconListItem
+from kivymd.uix.list import (
+    MDList,
+    MDListItem,
+    MDListItemHeadlineText,
+    MDListItemSupportingText,
+    MDListItemTrailingIcon,
+)
 
 from calorie_count.src.DB.meal_entry_db import MealEntry, MealEntryDB
+from calorie_count.src.utils.kivy_components import toast
 
 
-class ListEntry(TwoLineAvatarIconListItem):
-    """TwoLineAvatarIconListItem with delete Icon"""
+class ListEntry(MDListItem):
+    """A meal-entry list item: tap once to reveal a delete icon, tap again to delete."""
 
-    def __init__(self, entry_list: MDList, entry: MealEntry, **kwargs):
+    def __init__(
+        self,
+        entry_list: MDList,
+        entry: MealEntry,
+        text: str = "",
+        secondary_text: str = "",
+        **kwargs,
+    ):
         self.entry_list = entry_list
         self.entry_id = entry.id
-        self.delete_icon = IconRightWidget(icon="delete", on_release=self.on_del_icon_pressed)
+        self.entry_name = text
+        self.delete_icon = MDListItemTrailingIcon(icon="delete")
         self.is_icon_hidden = True
-        super().__init__(
-            **kwargs,
-            on_press=lambda *a, **k: self.on_item_press(self.entry_id, *a, **k),
-        )
+        super().__init__(on_release=self.on_item_press, **kwargs)
+        self.add_widget(MDListItemHeadlineText(text=text))
+        if secondary_text:
+            self.add_widget(MDListItemSupportingText(text=secondary_text))
 
-    def on_item_press(self, entry_id: str, _item: TwoLineAvatarIconListItem, *a, **k):
-        """Callback for when list item pressed (Note: mutable default on purpose)"""
-        if not self.is_icon_hidden:
-            return
+    def on_item_press(self, *_a, **_k):
+        """Reveal the delete icon on first press; delete on the second."""
+        if self.is_icon_hidden:
+            self.add_widget(self.delete_icon)
+            self.is_icon_hidden = False
+            Clock.schedule_once(self._hide_icon, 5)
+        else:
+            self._delete()
 
-        def _revert(*_a, **_k):
-            """Callback for returning back to normal."""
-            self.delete_icon.parent.remove_widget(self.delete_icon)
+    def _hide_icon(self, *_a, **_k):
+        """Return the item back to its normal (icon-hidden) state."""
+        if not self.is_icon_hidden and self.delete_icon.parent:
+            self.remove_widget(self.delete_icon)
             self.is_icon_hidden = True
 
-        self.add_widget(self.delete_icon)
-        self.is_icon_hidden = False
-        Clock.schedule_once(_revert, 5)
-
-    def on_del_icon_pressed(self, icon: IconRightWidget, *_a, **_k):
-        """Callback for when delete icon on list item pressed."""
+    def _delete(self, *_a, **_k):
+        """Remove this entry from the list and the database."""
         self.entry_list.remove_widget(self)
         with MealEntryDB() as db:
             db.delete_entry(self.entry_id)
-        toast(f"{self.text} Removed")
+        toast(f"{self.entry_name} Removed")
 
 
 class DailyScreen(ScrollView):
@@ -74,7 +89,6 @@ class DailyScreen(ScrollView):
                     entry_list,
                     entry,
                     text=text,
-                    font_style="H6",
                     secondary_text=f"Calories: {entry.food.cals: .2f}",
                 )
             )

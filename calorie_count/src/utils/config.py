@@ -13,29 +13,30 @@ THEME_HEADER = "THEME"
 DB_PATH_HEADER, DB_PATH_SECTION = "DB_PATH", "path"
 
 
-def set_theme(
-    theme_style: str, accent_palette: str, primary_palette: str, config_path: str = CONFIG
-) -> None:
-    """Set the theme info in config.ini"""
+def set_theme(theme_style: str, primary_palette: str, config_path: str = CONFIG) -> None:
+    """Set the theme info in config.ini.
+
+    KivyMD 2.0 dropped ``accent_palette``; only ``theme_style`` (Light/Dark) and
+    ``primary_palette`` (the Material seed color) are persisted now.
+    """
     parser = configparser.ConfigParser()
     parser.read(config_path)
     parser[THEME_HEADER] = {
         "theme_style": theme_style,
         "primary_palette": primary_palette,
-        "accent_palette": accent_palette,
     }
     with open(config_path, "w+") as fl:
         parser.write(fl)
 
 
-def get_theme(config_path: str = CONFIG) -> tuple[str, str, str]:
-    """Returns the theme info saved in config.ini"""
+def get_theme(config_path: str = CONFIG) -> tuple[str, str]:
+    """Returns the (theme_style, primary_palette) saved in config.ini."""
     parser = configparser.ConfigParser()
     parser.read(config_path)
     return (
         parser.get(THEME_HEADER, "theme_style", fallback="Dark"),
-        parser.get(THEME_HEADER, "accent_palette", fallback="Teal"),
-        parser.get(THEME_HEADER, "primary_palette", fallback="BlueGray"),
+        # KivyMD 2.0 palettes are Kivy/CSS color names (e.g. "Blue", "Teal").
+        parser.get(THEME_HEADER, "primary_palette", fallback="Blue"),
     )
 
 

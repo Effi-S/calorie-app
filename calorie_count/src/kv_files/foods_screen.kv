@@ -1,5 +1,4 @@
 <MealsScreen@MDFloatLayout>:
-    orientation: 'vertical'
     MDCard:
         size_hint: .9, .8
         pos_hint: {"x": .05, "y": .2}
@@ -20,12 +19,13 @@
     MDBoxLayout:
         size_hint: 1, 0.15
         pos_hint: {"x": .5, "y": 0.1}
-        MDFloatingActionButton:
+        spacing: dp(10)
+        MDFabButton:
             icon: "delete"
-            on_press: app.on_delete_foods_pressed(*args)
-        MDFloatingActionButton:
+            on_release: app.on_delete_foods_pressed(*args)
+        MDFabButton:
             icon: "plus"
-            on_press: app.on_add_food_pressed(*args)
-        MDFloatingActionButton:
+            on_release: app.on_add_food_pressed(*args)
+        MDFabButton:
             icon: "magnify"
-            on_press: app.on_search_food_pressed(*args)
+            on_release: app.on_search_food_pressed(*args)

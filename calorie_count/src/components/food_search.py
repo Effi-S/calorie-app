@@ -6,13 +6,19 @@ from __future__ import annotations
 from kivy.clock import Clock
 from kivy.lang import Builder
 from kivy.uix.screenmanager import Screen
-from kivymd.uix.button import MDFloatingActionButton
-from kivymd.uix.list import IconLeftWidget, ThreeLineAvatarListItem
+from kivymd.uix.button import MDFabButton
+from kivymd.uix.list import (
+    MDListItem,
+    MDListItemHeadlineText,
+    MDListItemLeadingIcon,
+    MDListItemSupportingText,
+    MDListItemTertiaryText,
+)
 
 from calorie_count.src.components.food_add_dialog import FoodAddDialog
 from calorie_count.src.consts import ARIAL
 from calorie_count.src.DB.external.client import ExternalFoodsDB, FoodData
-from calorie_count.src.utils.kivy_components import RTLMDTextField
+from calorie_count.src.utils.kivy_components import RTLMDTextField, make_text_field
 
 KV = """
 <FoodSearchScreen>:
@@ -21,12 +27,11 @@ KV = """
         orientation: "vertical"
         MDIconButton:
             id: return_button
-            text: "Back"
             icon: 'chevron-left'
-            on_press: 
+            on_release:
                 app.root.ids.screen_manager.transition.direction = 'right'
                 app.root.ids.screen_manager.current = "default"
-                
+
         MDBoxLayout:
             id: search_bar_layout
             size_hint: 1, .1
@@ -45,22 +50,22 @@ class FoodSearchScreen(Screen):
     def __init__(self, app, **kwargs):
         super().__init__(**kwargs)
         self.app = app
-        self.search_input_field = RTLMDTextField(
-            hint_text="Enter name of the food to Search",
-            pos_hint={"center_y": 0.9},
-            mode="rectangle",
-            font_name=str(ARIAL),
+        self.search_input_field = make_text_field(
+            RTLMDTextField(
+                pos_hint={"center_y": 0.9},
+                mode="outlined",
+                font_name=str(ARIAL),
+            ),
+            hint="Enter name of the food to Search",
         )
         Clock.schedule_once(self._post_build_)
 
     def _post_build_(self, *a, **k):
         # Search Bar
-        search_button = MDFloatingActionButton(
+        search_button = MDFabButton(
             icon="magnify",
-            text="Search",
             pos_hint={"center_y": 0.9},
-            on_press=self.run_search,
-            theme_text_color="Primary",
+            on_release=self.run_search,
         )
         self.ids.search_bar_layout.add_widget(self.search_input_field)
         self.ids.search_bar_layout.add_widget(search_button)
@@ -96,11 +101,13 @@ class FoodSearchScreen(Screen):
                     f" Sugar: {food.sugar}, "
                     f"Water: {food.water}"
                 )
-                list_item = ThreeLineAvatarListItem(
-                    text=title, secondary_text=",".join(desc), tertiary_text=tertiary
+                list_item = MDListItem(
+                    MDListItemLeadingIcon(icon=_icon_from_food(food)),
+                    MDListItemHeadlineText(text=title),
+                    MDListItemSupportingText(text=",".join(desc)),
+                    MDListItemTertiaryText(text=tertiary),
                 )
-                list_item.add_widget(IconLeftWidget(icon=_icon_from_food(food)))
-                list_item.bind(on_press=lambda *a, f=food, **k: self.add_food(f))
+                list_item.bind(on_release=lambda *a, f=food, **k: self.add_food(f))
                 self.ids.result_list.add_widget(list_item)
 
     def add_food(self, food: FoodData):
