@@ -3,38 +3,55 @@
     MDBoxLayout:
         size_hint: 1, .1
         pos_hint: {'y': .98}
-        MDFillRoundFlatButton:
+        spacing: dp(5)
+        padding: dp(5)
+        MDButton:
             id: trend_start_date_button
+            style: "tonal"
             size_hint_y: .8
-            padding: dp(20)
-            text: "Start Date:"
-            md_bg_color: app.theme_cls.primary_color
-            on_press: app.show_date_picker(*args)
-        MDFillRoundFlatButton:
-            text: "End Date:"
-            id: trend_end_date_button
-            size_hint_y: .8
-            md_bg_color: app.theme_cls.primary_color
             on_release: app.show_date_picker(*args)
-        MDFillRoundFlatIconButton:
-            text: "Create"
-            icon: 'chart-box'
-            md_bg_color: app.theme_cls.primary_color
+            MDButtonText:
+                text: "Start Date:"
+        MDButton:
+            id: trend_end_date_button
+            style: "tonal"
+            size_hint_y: .8
+            on_release: app.show_date_picker(*args)
+            MDButtonText:
+                text: "End Date:"
+        MDButton:
+            style: "filled"
+            size_hint_y: .8
             on_release: app.generate_trend(*args)
+            MDButtonIcon:
+                icon: 'chart-box'
+            MDButtonText:
+                text: "Create"
     MDBoxLayout:
         size_hint: 1, .12
-        MDFillRoundFlatIconButton:
-            text: "today"
-            icon: 'calendar'
+        spacing: dp(5)
+        padding: dp(5)
+        MDButton:
+            style: "outlined"
             on_release: app.set_trends_date_range(days_back=0)
-        MDFillRoundFlatIconButton:
-            text: "week"
-            icon: 'calendar-range'
+            MDButtonIcon:
+                icon: 'calendar'
+            MDButtonText:
+                text: "today"
+        MDButton:
+            style: "outlined"
             on_release: app.set_trends_date_range(days_back=7)
-        MDFillRoundFlatIconButton:
-            text: "month"
-            icon: 'calendar-month'
+            MDButtonIcon:
+                icon: 'calendar-range'
+            MDButtonText:
+                text: "week"
+        MDButton:
+            style: "outlined"
             on_release: app.set_trends_date_range(days_back=30)
+            MDButtonIcon:
+                icon: 'calendar-month'
+            MDButtonText:
+                text: "month"
     MDBoxLayout:
         padding: dp(40)
         ScrollView:
@@ -44,4 +61,3 @@
                 size_hint_y: 1.5
                 orientation: 'vertical'
                 id: trends_layout
-

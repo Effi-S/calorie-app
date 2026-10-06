@@ -26,27 +26,20 @@ class TestConfig(unittest.TestCase):
         """Test setting theme configuration."""
         config.set_theme(
             theme_style="Light",
-            accent_palette="Red",
             primary_palette="Blue",
             config_path=self.test_config_path,
         )
 
         # Verify the theme was set correctly
-        theme_style, accent_palette, primary_palette = config.get_theme(
-            config_path=self.test_config_path
-        )
+        theme_style, primary_palette = config.get_theme(config_path=self.test_config_path)
         self.assertEqual(theme_style, "Light")
-        self.assertEqual(accent_palette, "Red")
         self.assertEqual(primary_palette, "Blue")
 
     def test_get_theme_defaults(self):
         """Test getting theme with default values when config doesn't exist."""
-        theme_style, accent_palette, primary_palette = config.get_theme(
-            config_path=self.test_config_path
-        )
+        theme_style, primary_palette = config.get_theme(config_path=self.test_config_path)
         self.assertEqual(theme_style, "Dark")
-        self.assertEqual(accent_palette, "Teal")
-        self.assertEqual(primary_palette, "BlueGray")
+        self.assertEqual(primary_palette, "Blue")
 
     def test_get_db_path_default(self):
         """Test getting database path with default fallback."""

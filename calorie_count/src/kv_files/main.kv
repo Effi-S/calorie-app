@@ -7,7 +7,6 @@
 Screen:
     MDNavigationLayout:
         ScreenManager:
-            orientation: 'vertical'
             id: screen_manager
             Screen:
                 name: "default"
@@ -15,45 +14,70 @@ Screen:
                     orientation: "vertical"
                     MDTopAppBar:
                         id: top_app_bar
-            	        title: "Calorie Counter"
-            	        left_action_items:[['menu', lambda x: nav_drawer.set_state("open")]]
-            	        right_action_items: [['share-variant', app.open_xlsx_dropdown], ['invert-colors', app.show_theme_picker]]
+                        type: "small"
+                        size_hint_y: None
+                        MDTopAppBarLeadingButtonContainer:
+                            MDActionTopAppBarButton:
+                                icon: "menu"
+                                on_release: nav_drawer.set_state("open")
+                        MDTopAppBarTitle:
+                            text: "Calorie Counter"
+                        MDTopAppBarTrailingButtonContainer:
+                            MDActionTopAppBarButton:
+                                icon: "share-variant"
+                                on_release: app.open_xlsx_dropdown()
+                            MDActionTopAppBarButton:
+                                icon: "invert-colors"
+                                on_release: app.show_theme_picker()
 
-                    MDBottomNavigation:
-                        id: bottom_navigation
-                        MDBottomNavigationItem:
-                            name: 'my_foods'
-                            text: "My Foods"
-                            icon: 'basket'
-                            on_enter: app.on_my_foods_screen_pressed(*args)
+                    ScreenManager:
+                        id: tab_manager
+                        Screen:
+                            name: "my_foods"
                             MealsScreen:
                                 id: foods_screen
-
-                        MDBottomNavigationItem:
-                            name: 'add_entry'
-                            text: "Add Entry"
-                            icon: 'calendar-plus'
+                        Screen:
+                            name: "add_entry"
                             EntryAddScreen:
                                 id: entry_add_screen
-
-                        MDBottomNavigationItem:
-                            name: 'daily_screen'
-                            text: "Today"
-                            icon: 'view-day-outline'
-                            on_tab_press: app.on_daily_screen_pressed(*args)
+                        Screen:
+                            name: "daily_screen"
                             DailyScreen:
                                 id: daily_screen
-
-
-                        MDBottomNavigationItem:
-                            name: 'trends_screen'
-                            text: "Trends"
-                            icon: 'chart-bell-curve-cumulative'
-                            on_enter: app.on_trends_pressed(*args)
+                        Screen:
+                            name: "trends_screen"
                             TrendsScreen:
                                 id: trends_screen
-                                text: "View your trends here"
-                                halign: 'center'
+
+                    MDNavigationBar:
+                        id: bottom_navigation
+                        on_switch_tabs: app.on_switch_tabs(*args)
+                        NavItem:
+                            screen: "my_foods"
+                            MDNavigationItemIcon:
+                                icon: "basket"
+                            MDNavigationItemLabel:
+                                text: "My Foods"
+                        NavItem:
+                            screen: "add_entry"
+                            active: True
+                            MDNavigationItemIcon:
+                                icon: "calendar-plus"
+                            MDNavigationItemLabel:
+                                text: "Add Entry"
+                        NavItem:
+                            screen: "daily_screen"
+                            MDNavigationItemIcon:
+                                icon: "view-day-outline"
+                            MDNavigationItemLabel:
+                                text: "Today"
+                        NavItem:
+                            screen: "trends_screen"
+                            MDNavigationItemIcon:
+                                icon: "chart-bell-curve-cumulative"
+                            MDNavigationItemLabel:
+                                text: "Trends"
+
         MDNavigationDrawer:
             id: nav_drawer
             ContentNavigationDrawer:
