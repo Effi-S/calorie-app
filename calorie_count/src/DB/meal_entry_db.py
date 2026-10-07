@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime as dt
 
-from sqlalchemy import func
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from calorie_count.src.DB.food_db import Food, FoodDB
@@ -127,11 +127,11 @@ class MealEntryDB:
 
     def get_entries_between_dates(self, start_date: str, end_date: str) -> list[MealEntry]:
         """Get meal entries between two dates."""
-        entries = (
-            self.session.query(MealEntryModel)
-            .filter(MealEntryModel.date >= start_date, MealEntryModel.date <= end_date)
-            .all()
-        )
+        entries = self.session.scalars(
+            select(MealEntryModel).where(
+                MealEntryModel.date >= start_date, MealEntryModel.date <= end_date
+            )
+        ).all()
 
         ret = []
         with FoodDB(self.db_path) as fdb:
@@ -142,8 +142,8 @@ class MealEntryDB:
 
     def get_first_last_dates(self) -> tuple[dt.date, dt.date]:
         """Get the first and the last date of all entries"""
-        result = self.session.query(
-            func.min(MealEntryModel.date), func.max(MealEntryModel.date)
+        result = self.session.execute(
+            select(func.min(MealEntryModel.date), func.max(MealEntryModel.date))
         ).first()
 
         start, end = result
@@ -156,5 +156,5 @@ class MealEntryDB:
 
     def delete_entry(self, time_stamp: str) -> None:
         """Remove an entry based on its id."""
-        self.session.query(MealEntryModel).filter(MealEntryModel.id == time_stamp).delete()
+        self.session.execute(delete(MealEntryModel).where(MealEntryModel.id == time_stamp))
         self.session.commit()

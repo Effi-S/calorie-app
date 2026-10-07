@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Column, Float, String, Text, create_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy import Engine, Text, create_engine
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    Session,
+    mapped_column,
+    sessionmaker,
+)
+from sqlalchemy.orm import close_all_sessions as _orm_close_all_sessions
 
 from calorie_count.src.utils import config
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Declarative base for all ORM models (SQLAlchemy 2.0 style)."""
 
 
 class FoodModel(Base):
@@ -18,17 +27,17 @@ class FoodModel(Base):
     # `id` is the primary key: meal entries reference foods by id (see MealEntryModel.meal_id),
     # and soft-deleting a referenced food blanks its `name` to '' (see FoodDB.remove). `name`
     # must therefore allow duplicates/blanks, so it cannot be the primary key.
-    id = Column(String, primary_key=True)
-    name = Column(String, index=True, default="")
-    portion = Column(Float, default=0)
-    protein = Column(Float, default=0)
-    fats = Column(Float, default=0)
-    carbs = Column(Float, default=0)
-    sugar = Column(Float, default=0)
-    sodium = Column(Float, default=0)
-    water = Column(Float, default=0)
+    id: Mapped[str] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(default="", index=True)
+    portion: Mapped[float] = mapped_column(default=0)
+    protein: Mapped[float] = mapped_column(default=0)
+    fats: Mapped[float] = mapped_column(default=0)
+    carbs: Mapped[float] = mapped_column(default=0)
+    sugar: Mapped[float] = mapped_column(default=0)
+    sodium: Mapped[float] = mapped_column(default=0)
+    water: Mapped[float] = mapped_column(default=0)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<FoodModel(name='{self.name}', id='{self.id}')>"
 
 
@@ -37,12 +46,12 @@ class MealEntryModel(Base):
 
     __tablename__ = "meal_entries"
 
-    id = Column(String, primary_key=True)
-    meal_id = Column(String)
-    portion = Column(Float)
-    date = Column(String)
+    id: Mapped[str] = mapped_column(primary_key=True)
+    meal_id: Mapped[str | None]
+    portion: Mapped[float | None]
+    date: Mapped[str | None]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<MealEntryModel(id='{self.id}', meal_id='{self.meal_id}', date='{self.date}')>"
 
 
@@ -51,26 +60,26 @@ class ExternalFoodModel(Base):
 
     __tablename__ = "foods"
 
-    description = Column(Text, primary_key=True)
-    portions = Column(Text)
-    protein = Column(Float)
-    fats = Column(Float)
-    carbs = Column(Float)
-    sodium = Column(Float)
-    sugar = Column(Float)
-    water = Column(Float)
+    description: Mapped[str] = mapped_column(Text, primary_key=True)
+    portions: Mapped[str | None] = mapped_column(Text)
+    protein: Mapped[float | None]
+    fats: Mapped[float | None]
+    carbs: Mapped[float | None]
+    sodium: Mapped[float | None]
+    sugar: Mapped[float | None]
+    water: Mapped[float | None]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<ExternalFoodModel(description='{self.description}')>"
 
 
-# Session management
-_engines = {}
-_sessions = {}
+# Session management: one engine + session factory per database path.
+_engines: dict[str, Engine] = {}
+_session_factories: dict[str, sessionmaker[Session]] = {}
 
 
-def get_engine(db_path: str | None = None) -> create_engine:
-    """Get or create SQLAlchemy engine for a database path."""
+def get_engine(db_path: str | None = None) -> Engine:
+    """Get or create the SQLAlchemy engine for a database path."""
     db_path = db_path or config.get_db_path()
     if db_path not in _engines:
         _engines[db_path] = create_engine(
@@ -80,27 +89,22 @@ def get_engine(db_path: str | None = None) -> create_engine:
 
 
 def get_session(db_path: str | None = None) -> Session:
-    """Get or create SQLAlchemy session for a database path."""
+    """Open a new SQLAlchemy session for a database path."""
     db_path = db_path or config.get_db_path()
-    if db_path not in _sessions:
-        engine = get_engine(db_path)
-        SessionLocal = sessionmaker(bind=engine)
-        _sessions[db_path] = SessionLocal
-    return _sessions[db_path]()
+    if db_path not in _session_factories:
+        _session_factories[db_path] = sessionmaker(bind=get_engine(db_path))
+    return _session_factories[db_path]()
 
 
-def create_tables(db_path: str | None = None):
+def create_tables(db_path: str | None = None) -> None:
     """Create all tables in the database."""
-    engine = get_engine(db_path)
-    Base.metadata.create_all(engine)
+    Base.metadata.create_all(get_engine(db_path))
 
 
-def close_all_sessions():
-    """Close all active sessions and engines."""
-    for session_factory in _sessions.values():
-        # Close any active sessions
-        pass
+def close_all_sessions() -> None:
+    """Close any open sessions and dispose of all engines."""
+    _orm_close_all_sessions()
     for engine in _engines.values():
         engine.dispose()
-    _sessions.clear()
+    _session_factories.clear()
     _engines.clear()
