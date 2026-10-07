@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
 
-from sqlalchemy import Column
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from calorie_count.src.DB.models import (
@@ -27,16 +27,15 @@ def similarity(a: str, b: str) -> float:
 class FoodData:
     """This class represents a Searchable Food"""
 
-    description: str | Column[str]
-    portions: (
-        str | Column[str]
-    )  # string representation of mapping portion to quantity(g)  e.x - 'cup:30,bowl:100'...
-    protein: float | Column[float]
-    fats: float | Column[float]
-    carbs: float | Column[float]
-    sodium: float | Column[float]
-    sugar: float | Column[float]
-    water: float | Column[float]
+    description: str
+    # string representation of mapping portion to quantity(g)  e.x - 'cup:30,bowl:100'...
+    portions: str
+    protein: float
+    fats: float
+    carbs: float
+    sodium: float
+    sugar: float
+    water: float
 
     def __post_init__(self):
         self.description = self.description.replace('"', "")
@@ -122,11 +121,9 @@ class ExternalFoodsDB:
 
     def add_food(self, food: FoodData):
         """Add a food to the external foods database."""
-        food_model = (
-            self.session.query(ExternalFoodModel)
-            .filter(ExternalFoodModel.description == food.description)
-            .first()
-        )
+        food_model = self.session.scalars(
+            select(ExternalFoodModel).where(ExternalFoodModel.description == food.description)
+        ).first()
 
         if not food_model:
             food_model = food.to_model()
@@ -144,12 +141,11 @@ class ExternalFoodsDB:
             add those that are > 0.9 ratio.
             (Note: SQLite has 'editdist3' but I don't think it can work on android)"""
         # First, try LIKE search
-        foods = (
-            self.session.query(ExternalFoodModel)
-            .filter(ExternalFoodModel.description.like(f"%{name}%"))
+        foods = self.session.scalars(
+            select(ExternalFoodModel)
+            .where(ExternalFoodModel.description.like(f"%{name}%"))
             .limit(max_results)
-            .all()
-        )
+        ).all()
 
         count = 0
         for food_model in foods:
@@ -160,7 +156,7 @@ class ExternalFoodsDB:
         if count < max_results:
             # Note: SQLAlchemy doesn't directly support custom SQLite functions in WHERE
             # So we'll fetch all and filter in Python for similarity >= 0.9
-            all_foods = self.session.query(ExternalFoodModel).all()
+            all_foods = self.session.scalars(select(ExternalFoodModel)).all()
             similar_foods = []
             for food_model in all_foods:
                 if similarity(food_model.description, name) >= 0.9:  # type: ignore

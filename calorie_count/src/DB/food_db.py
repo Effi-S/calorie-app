@@ -7,9 +7,10 @@ from dataclasses import astuple, dataclass, field
 from datetime import datetime as dt
 from typing import Any
 
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
-from calorie_count.src.DB.models import FoodModel, create_tables, get_session
+from calorie_count.src.DB.models import FoodModel, MealEntryModel, create_tables, get_session
 from calorie_count.src.utils import config
 
 
@@ -114,17 +115,17 @@ class FoodDB:
 
     def get_all_foods(self) -> list[Food]:
         """Get all foods from the database."""
-        foods = self.session.query(FoodModel).filter(FoodModel.name != "").all()
+        foods = self.session.scalars(select(FoodModel).where(FoodModel.name != "")).all()
         return [Food.from_model(f) for f in foods if f.name]
 
     def get_all_food_names(self) -> list[str]:
         """Get all food names from the database."""
-        names = self.session.query(FoodModel.name).filter(FoodModel.name != "").all()
-        return [str(name[0]) for name in names if name[0]]
+        names = self.session.scalars(select(FoodModel.name).where(FoodModel.name != "")).all()
+        return [str(name) for name in names if name]
 
     def get_food_by_name(self, name: str) -> Food:
         """Get food by name."""
-        food_model = self.session.query(FoodModel).filter(FoodModel.name == name).first()
+        food_model = self.session.scalars(select(FoodModel).where(FoodModel.name == name)).first()
         if food_model:
             return Food.from_model(food_model)
         # Return empty Food if not found (maintaining backward compatibility)
@@ -132,7 +133,7 @@ class FoodDB:
 
     def get_food_by_id(self, id_: str) -> Food:
         """Get food by ID."""
-        food_model = self.session.query(FoodModel).filter(FoodModel.id == id_).first()
+        food_model = self.session.scalars(select(FoodModel).where(FoodModel.id == id_)).first()
         if food_model:
             return Food.from_model(food_model)
         # Return empty Food if not found (maintaining backward compatibility)
@@ -145,7 +146,7 @@ class FoodDB:
         is set, or when its name differs from the incoming food -- the latter
         resurrects a soft-deleted row (one whose name was blanked by remove()).
         """
-        food_model = self.session.query(FoodModel).filter(FoodModel.id == food.id).first()
+        food_model = self.session.scalars(select(FoodModel).where(FoodModel.id == food.id)).first()
 
         if food_model is None:
             # Insert new food
@@ -170,28 +171,30 @@ class FoodDB:
         if not names:
             return
 
-        # Check for references in meal_entries
-        from calorie_count.src.DB.models import MealEntryModel
-
-        referenced_query = (
-            self.session.query(FoodModel.name)
+        # Names still referenced by a meal entry must be kept (soft-deleted).
+        referenced = self.session.scalars(
+            select(FoodModel.name)
             .join(MealEntryModel, MealEntryModel.meal_id == FoodModel.id)
-            .filter(FoodModel.name.in_(names))
-        )
-        referenced_names = referenced_query.all()
+            .where(FoodModel.name.in_(names))
+        ).all()
 
-        to_clear_name = [name[0] for name in referenced_names if name[0]]
+        to_clear_name = [name for name in referenced if name]
         to_delete = [n for n in names if n not in to_clear_name]
 
         if to_delete:
-            self.session.query(FoodModel).filter(FoodModel.name.in_(to_delete)).delete(
-                synchronize_session=False
+            self.session.execute(
+                delete(FoodModel)
+                .where(FoodModel.name.in_(to_delete))
+                .execution_options(synchronize_session=False)
             )
             self.session.commit()
 
         if to_clear_name:
-            # Clear name instead of deleting (food is referenced)
-            self.session.query(FoodModel).filter(FoodModel.name.in_(to_clear_name)).update(
-                {FoodModel.name: ""}, synchronize_session=False
+            # Clear name instead of deleting (food is still referenced by a meal entry).
+            self.session.execute(
+                update(FoodModel)
+                .where(FoodModel.name.in_(to_clear_name))
+                .values(name="")
+                .execution_options(synchronize_session=False)
             )
             self.session.commit()
