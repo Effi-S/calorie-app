@@ -1,4 +1,4 @@
-#:import toast kivymd.toast.toast
+#:import toast calorie_count.src.utils.kivy_components.toast
 <ContentNavigationDrawer@MDBoxLayout>:
     orientation: "vertical"
     padding: "8dp"
@@ -13,38 +13,41 @@
             id: avatar
             size_hint: None, None
             size: "56dp", "56dp"
-            source: "cc.jpg"
+            source: "src/cc.jpg"
 
     MDLabel:
         text: "Calorie Counter"
-        font_style: "Button"
+        font_style: "Title"
         adaptive_height: True
 
     MDLabel:
         text: "By: Efrayim Sztokman"
-        font_style: "Caption"
+        font_style: "Label"
         adaptive_height: True
 
     ScrollView:
         MDList:
-            OneLineIconListItem:
-                text: "Capture Label"
+            MDListItem:
                 on_release: toast('Not Implemented yet')
-                IconLeftWidget:
+                MDListItemLeadingIcon:
                     icon: "scan-helper"
-            OneLineIconListItem:
-                text: "User"
+                MDListItemHeadlineText:
+                    text: "Capture Label"
+            MDListItem:
                 on_release: toast('Not Implemented yet')
-                IconLeftWidget:
+                MDListItemLeadingIcon:
                     icon: "account"
-            OneLineIconListItem:
-                text: "Meal Plan"
+                MDListItemHeadlineText:
+                    text: "User"
+            MDListItem:
                 on_release: toast('Not Implemented yet')
-                IconLeftWidget:
+                MDListItemLeadingIcon:
                     icon: "calendar-month"
-            OneLineIconListItem:
-                text: "Daily Goals"
+                MDListItemHeadlineText:
+                    text: "Meal Plan"
+            MDListItem:
                 on_release: toast('Not Implemented yet')
-                IconLeftWidget:
+                MDListItemLeadingIcon:
                     icon: "checkbox-marked"
-
+                MDListItemHeadlineText:
+                    text: "Daily Goals"

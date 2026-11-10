@@ -1,20 +1,22 @@
 """This Module holds a class FoodAddDialog
-    - The dialog/pop-up of our calorie App that asks the user to input a new food."""
+- The dialog/pop-up of our calorie App that asks the user to input a new food."""
 
 from __future__ import annotations
 
-from typing import Optional
-
-from kivymd.toast import toast
-from kivymd.uix.boxlayout import MDBoxLayout
-from kivymd.uix.button import MDFillRoundFlatIconButton
-from kivymd.uix.dialog import MDDialog
+from kivy.uix.widget import Widget
+from kivymd.uix.button import MDButton, MDButtonIcon, MDButtonText
+from kivymd.uix.dialog import (
+    MDDialog,
+    MDDialogButtonContainer,
+    MDDialogContentContainer,
+    MDDialogHeadlineText,
+)
 from kivymd.uix.gridlayout import MDGridLayout
 from kivymd.uix.textfield import MDTextField
 
 from calorie_count.src.consts import ARIAL
 from calorie_count.src.DB.food_db import Food, FoodDB
-from calorie_count.src.utils.kivy_components import RTLMDTextField
+from calorie_count.src.utils.kivy_components import RTLMDTextField, make_text_field, toast
 
 
 class FloatMDTextField(MDTextField):
@@ -31,57 +33,52 @@ class FloatMDTextField(MDTextField):
 class FoodAddDialog(MDDialog):
     """A dialog/pop-up asking the user to add a new Food."""
 
-    last_submission: Optional[Food] = None  # Here we can store the last Food submission
+    last_submission: Food | None = None  # Here we can store the last Food submission
 
     def __init__(self, app, back_dialog=None, allow_nameless: bool = False, **kwargs):
-
         self.allow_nameless = allow_nameless
         self.root_window = app.root_window
 
+        # Headline (exposed so callers can customise the title text).
+        self.headline = MDDialogHeadlineText(text="Add A new Food")
+
         # dialog buttons
-        self.submit_button = MDFillRoundFlatIconButton(
-            text="Submit Food",
-            icon="basket-plus",
-            on_press=self.on_submit_food_button_pressed,
+        self.submit_button = MDButton(
+            MDButtonIcon(icon="basket-plus"),
+            MDButtonText(text="Submit Food"),
+            style="filled",
+            on_release=self.on_submit_food_button_pressed,
         )
-        self.clear_button = MDFillRoundFlatIconButton(
-            text="Clear selection",
-            icon="undo",
-            on_press=self.on_clear_food_button_pressed,
-        )
-        # content
-        self.content = MDBoxLayout(
-            orientation="vertical",
-            size_hint_y=None,
-            height=self.root_window.height * 0.4,
+        self.clear_button = MDButton(
+            MDButtonIcon(icon="undo"),
+            MDButtonText(text="Clear selection"),
+            style="tonal",
+            on_release=self.on_clear_food_button_pressed,
         )
 
         # food name
-        self.food_name = RTLMDTextField(
-            hint_text="Enter name of the Food",
-            font_name=str(ARIAL),
-            icon_right="food-variant",
-        )
-        self.content.add_widget(self.food_name)
-
-        # food portion
-        self.food_portion = MDTextField(
-            hint_text="Enter Portion (g) of the Food", icon_right="scale"
+        self.food_name = make_text_field(
+            RTLMDTextField(font_name=str(ARIAL)),
+            hint="Enter name of the Food",
+            icon="food-variant",
         )
 
-        inner_content = MDGridLayout(cols=2)
-        self.protein = FloatMDTextField(
-            hint_text="Proteins (g)", icon_right="food-steak"
+        # food portion (kept for the clear-selection handler; not shown directly)
+        self.food_portion = make_text_field(
+            MDTextField(), hint="Enter Portion (g) of the Food", icon="scale"
         )
-        self.fats = FloatMDTextField(hint_text="Fats (g)", icon_right="fish")
-        self.carbs = FloatMDTextField(hint_text="Carbs (g)", icon_right="pasta")
-        self.water = FloatMDTextField(
-            hint_text="Water (g)", icon_right="water-outline", text="0"
+
+        inner_content = MDGridLayout(cols=2, adaptive_height=True)
+        self.protein = make_text_field(FloatMDTextField(), hint="Proteins (g)", icon="food-steak")
+        self.fats = make_text_field(FloatMDTextField(), hint="Fats (g)", icon="fish")
+        self.carbs = make_text_field(FloatMDTextField(), hint="Carbs (g)", icon="pasta")
+        self.water = make_text_field(
+            FloatMDTextField(text="0"), hint="Water (g)", icon="water-outline"
         )
-        self.sugar = FloatMDTextField(
-            hint_text="Sugar (g)", icon_right="food-apple-outline", text="0"
+        self.sugar = make_text_field(
+            FloatMDTextField(text="0"), hint="Sugar (g)", icon="food-apple-outline"
         )
-        self.salt = FloatMDTextField(hint_text="Salt (mg)", icon_right="shaker-outline")
+        self.salt = make_text_field(FloatMDTextField(), hint="Salt (mg)", icon="shaker-outline")
         for x in (
             self.protein,
             self.fats,
@@ -91,14 +88,21 @@ class FoodAddDialog(MDDialog):
             self.salt,
         ):
             inner_content.add_widget(x)
-        self.content.add_widget(inner_content)
+
         self.bind(on_dismiss=app.on_my_foods_screen_pressed)
-        # building the dialog
+        # building the dialog (KivyMD 2.0 composition API)
         super().__init__(
-            title="Add A new Food",
-            type="custom",
-            content_cls=self.content,
-            buttons=[self.submit_button, self.clear_button],
+            self.headline,
+            MDDialogContentContainer(
+                self.food_name,
+                inner_content,
+                orientation="vertical",
+            ),
+            MDDialogButtonContainer(
+                Widget(),
+                self.clear_button,
+                self.submit_button,
+            ),
             **kwargs,
         )
 

@@ -1,12 +1,13 @@
-""" Here we store Excel utilities """
+"""Here we store Excel utilities"""
+
 import openpyxl
 
-from calorie_count.src.DB.food_db import FoodDB, Food
-from calorie_count.src.DB.meal_entry_db import MealEntryDB, MealEntry
+from calorie_count.src.DB.food_db import Food, FoodDB
+from calorie_count.src.DB.meal_entry_db import MealEntry, MealEntryDB
 
-DEFAULT_XLSX = 'Calorie_Counting.xlsx'
-FOOD_SHEET = 'My Foods'
-MEALS_SHEET = 'My Meal Entries'
+DEFAULT_XLSX = "Calorie_Counting.xlsx"
+FOOD_SHEET = "My Foods"
+MEALS_SHEET = "My Meal Entries"
 
 
 def save_to_excel(path: str = DEFAULT_XLSX, *args) -> None:
@@ -35,7 +36,7 @@ def save_to_excel(path: str = DEFAULT_XLSX, *args) -> None:
             sh.append(entry.values)
 
     # --3-- Saving Workbook
-    print(f'Saving file here:', path)
+    print("Saving file here:", path)
     wb.save(path)
 
 
@@ -49,8 +50,9 @@ def import_excel(path: str = DEFAULT_XLSX, *args) -> None:
 
     gen = wb[FOOD_SHEET].iter_rows(values_only=True)
     headers = next(gen)
-    assert headers == Food.columns(), f'Invalid Sheet: {FOOD_SHEET}\n' \
-                                      f'Expected: {Food.columns}\nGot: {headers}'
+    assert headers == Food.columns(), (
+        f"Invalid Sheet: {FOOD_SHEET}\nExpected: {Food.columns}\nGot: {headers}"
+    )
     with FoodDB() as fdb:
         for row in gen:
             food = Food(*row)
@@ -59,16 +61,17 @@ def import_excel(path: str = DEFAULT_XLSX, *args) -> None:
     # --2-- Reading meals sheet
     gen = wb[MEALS_SHEET].iter_rows(values_only=True)
     headers = next(gen)
-    assert headers == MealEntry.columns(), f'Invalid Sheet: {MEALS_SHEET}\n' \
-                                           f'Expected: {MealEntry.columns}\nGot: {headers}'
+    assert headers == MealEntry.columns(), (
+        f"Invalid Sheet: {MEALS_SHEET}\nExpected: {MealEntry.columns}\nGot: {headers}"
+    )
     with MealEntryDB() as mdb:
         for row in gen:
             date, name, portion, *_ = row
             entry = MealEntry(name=name, date=date, portion=portion)
             mdb.add_meal_entry(entry)
-    print(f'{path} Loaded!')
+    print(f"{path} Loaded!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     save_to_excel()
     import_excel()

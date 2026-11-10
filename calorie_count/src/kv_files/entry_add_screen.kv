@@ -1,41 +1,47 @@
 <EntryAddScreen@FloatLayout>:
-	MDCard:
-		size_hint: .7, .6
-		pos_hint: {"x": .15, "y": .35}
-		elevation: 2
-		padding: 25
-		spacing: 25
-		orientation: 'vertical'
+    MDCard:
+        size_hint: .7, .6
+        pos_hint: {"x": .15, "y": .35}
+        elevation: 2
+        padding: 25
+        spacing: 25
+        orientation: 'vertical'
 
-	    MDLabel:
-		    id: add_meal_label
-		    text: "Add a new Meal Entry"
+        MDLabel:
+            id: add_meal_label
+            text: "Add a new Meal Entry"
             halign: 'center'
-	    MDTextField:
-		    id: meal_name_input
-		    hint_text: "Enter name of the meal"
-		    size_hint_x: 0.8
-		    pos_hint: {"center_x": 0.5}
-		    icon_right: "food-variant"
-		    input_filter: app.on_name_entered_in_add_entry_screen
-	    MDTextField:
-	    	id: grams_input
-	    	hint_text: "Enter Portion (g)"
-	    	size_hint_x: 0.8
-	    	pos_hint: {"center_x": 0.5}
-	    	icon_right: "scale"
-	    MDRaisedButton:
-	        id: date_input
-            text: "Date: "
+        MDTextField:
+            id: meal_name_input
+            size_hint_x: 0.8
+            pos_hint: {"center_x": 0.5}
+            input_filter: app.on_name_entered_in_add_entry_screen
+            MDTextFieldHintText:
+                text: "Enter name of the meal"
+            MDTextFieldTrailingIcon:
+                icon: "food-variant"
+        MDTextField:
+            id: grams_input
+            size_hint_x: 0.8
+            pos_hint: {"center_x": 0.5}
+            MDTextFieldHintText:
+                text: "Enter Portion (g)"
+            MDTextFieldTrailingIcon:
+                icon: "scale"
+        MDButton:
+            id: date_input
+            style: "tonal"
             pos_hint: {'center_x': .5}
             on_release: app.on_choose_entry_date_pressed()
+            MDButtonText:
+                text: "Date: "
 
-
-        MDFillRoundFlatIconButton:
-        	id: add_meal_button
-        	text: "Submit Meal Entry"
-        	icon: "basket-plus"
-        	padding: 20
-        	pos_hint: {"center_x": 0.5}
-        	on_press: app.on_submit_meal_entry(*args)
-
+        MDButton:
+            id: add_meal_button
+            style: "filled"
+            pos_hint: {"center_x": 0.5}
+            on_release: app.on_submit_meal_entry(*args)
+            MDButtonIcon:
+                icon: "basket-plus"
+            MDButtonText:
+                text: "Submit Meal Entry"
