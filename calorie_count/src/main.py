@@ -1,6 +1,6 @@
 """This module holds:
-    1. Initialization of our Calorie App.
-    2. Events referenced by .kv files."""
+1. Initialization of our Calorie App.
+2. Events referenced by .kv files."""
 
 from __future__ import annotations
 
@@ -11,20 +11,27 @@ from datetime import timedelta
 # from calorie_count.src.consts import ARIAL
 
 try:
-    import kivy
+    pass
 except (Exception,):
     os.environ["KIVY_GL_BACKEND"] = "angle_sdl2"  # (debug w/ Windows + GPU)
 from kivy.clock import Clock
 from kivy.lang import Builder
 from kivy.metrics import dp
+from kivy.properties import StringProperty
+from kivy.uix.widget import Widget
 from kivymd.app import MDApp
-from kivymd.toast import toast
-from kivymd.uix.button import MDFillRoundFlatIconButton, MDFlatButton
+from kivymd.uix.button import MDButton, MDButtonIcon, MDButtonText
 from kivymd.uix.datatables import MDDataTable
-from kivymd.uix.dialog import MDDialog
+from kivymd.uix.dialog import (
+    MDDialog,
+    MDDialogButtonContainer,
+    MDDialogHeadlineText,
+    MDDialogSupportingText,
+)
 from kivymd.uix.filemanager import MDFileManager
 from kivymd.uix.menu import MDDropdownMenu
-from kivymd.uix.pickers import MDDatePicker
+from kivymd.uix.navigationbar import MDNavigationItem
+from kivymd.uix.pickers.datepicker import MDModalDatePicker
 
 from calorie_count.lib.theme.picker import MDThemePicker
 from calorie_count.src.components.daily_screen import DailyScreen
@@ -33,8 +40,23 @@ from calorie_count.src.components.food_search import FoodSearchScreen
 from calorie_count.src.DB.food_db import Food, FoodDB
 from calorie_count.src.DB.meal_entry_db import MealEntry, MealEntryDB
 from calorie_count.src.utils import config, consts, xlsx
-from calorie_count.src.utils.plotting import plot_graph, plot_pie_chart, fig2img
+from calorie_count.src.utils.kivy_components import get_label, set_label, toast
+from calorie_count.src.utils.plotting import fig2img, plot_graph, plot_pie_chart
 from calorie_count.src.utils.utils import sort_by_similarity
+
+
+def _dialog_button(text: str, on_release, icon: str | None = None, style: str = "text") -> MDButton:
+    """Build an MDButton for use inside an MDDialogButtonContainer."""
+    btn = MDButton(MDButtonText(text=text), style=style, on_release=on_release)
+    if icon:
+        btn.add_widget(MDButtonIcon(icon=icon))
+    return btn
+
+
+class NavItem(MDNavigationItem):
+    """Bottom-navigation item that remembers which tab-screen it selects."""
+
+    screen = StringProperty("")
 
 
 class CaloriesApp(MDApp):
@@ -45,19 +67,23 @@ class CaloriesApp(MDApp):
         self._drop_down = None
 
     def build(self):
-        # Configuring picker data
-
-        (
-            self.theme_cls.theme_style,
-            self.theme_cls.accent_palette,
-            self.theme_cls.primary_palette,
-        ) = config.get_theme()
+        # Apply persisted theme (KivyMD 2.0: theme_style + primary_palette only)
+        theme_style, primary_palette = config.get_theme()
+        self.theme_cls.theme_style = theme_style
+        self.theme_cls.primary_palette = primary_palette
 
         Clock.schedule_once(self._post_build_)
 
         from kivy.core.window import Window
 
         Window.size = (500, 700)
+        # Paint the window with the theme background so screens aren't black
+        # (plain Screens don't fill a background in KivyMD 2.0); keep it in sync
+        # when the user changes the theme.
+        Window.clearcolor = self.theme_cls.backgroundColor
+        self.theme_cls.bind(
+            backgroundColor=lambda _inst, color: setattr(Window, "clearcolor", color)
+        )
         return Builder.load_file(consts.MAIN_KV)
 
     def _post_build_(self, *a, **k):
@@ -67,13 +93,36 @@ class CaloriesApp(MDApp):
         self.root.ids.screen_manager.add_widget(self.food_search_screen)
 
         # setting entry date to today
-        self.root.ids.entry_add_screen.ids.date_input.text = (
-            f"Date:\n{dt.now().date().isoformat()}"
+        set_label(
+            self.root.ids.entry_add_screen.ids.date_input,
+            f"Date:\n{dt.now().date().isoformat()}",
         )
 
     def _switch_tab(self, name: str = "add_entry"):
-        """Helper for switching the current tab."""
-        self.root.ids.bottom_navigation.switch_tab(name)
+        """Helper for switching the current tab (inner ScreenManager + nav bar)."""
+        self.root.ids.tab_manager.current = name
+        for item in self.root.ids.bottom_navigation.children:
+            item.active = getattr(item, "screen", None) == name
+
+    def on_switch_tabs(self, *args):
+        """Called by MDNavigationBar when the active tab changes.
+
+        The kv ``on_switch_tabs`` event dispatches the bar instance plus
+        ``(item, item_icon, item_text)``, so accept ``*args`` and pick out the
+        navigation item (the one carrying a ``screen``) rather than relying on a
+        fixed arity.
+        """
+        item = next((a for a in args if hasattr(a, "screen")), None)
+        name = getattr(item, "screen", "")
+        if not name:
+            return
+        self.root.ids.tab_manager.current = name
+        if name == "my_foods":
+            self.on_my_foods_screen_pressed()
+        elif name == "daily_screen":
+            self.on_daily_screen_pressed()
+        elif name == "trends_screen":
+            self.on_trends_pressed()
 
     def on_choose_entry_date_pressed(self):
         """Set a custom date for the entry"""
@@ -100,7 +149,6 @@ class CaloriesApp(MDApp):
             use_pagination=True,
         )
         if not foods:
-            self.food_table.title = "No Foods Yet"
             toast("No Foods Yet")
 
         table_layout.add_widget(self.food_table)
@@ -110,9 +158,7 @@ class CaloriesApp(MDApp):
             self.add_food_dialog = FoodAddDialog(self)
         self.add_food_dialog.open()
 
-    def on_trends_pressed(
-        self, *args, _once=[]
-    ):  # Mutable default parameter on purpose
+    def on_trends_pressed(self, *args, _once=[]):  # Mutable default parameter on purpose
         """Event when entering the "Trends" screen"""
         if not _once:
             # Setting the Dates in trends between today and 7 days ago
@@ -120,8 +166,8 @@ class CaloriesApp(MDApp):
             a_week_ago = dt.now().date() - timedelta(days=7)
             start = self.root.ids.trends_screen.ids.trend_start_date_button
             end = self.root.ids.trends_screen.ids.trend_end_date_button
-            start.text += f"\n{a_week_ago}"
-            end.text += f"\n{today}"
+            set_label(start, f"{get_label(start)}\n{a_week_ago}")
+            set_label(end, f"{get_label(end)}\n{today}")
             _once.append(1)
         self.generate_trend()
 
@@ -140,6 +186,7 @@ class CaloriesApp(MDApp):
                 self.root.ids.entry_add_screen.ids.grams_input.text = str(
                     db.get_food_by_name(txt).portion
                 )
+            self._dismiss_drop_down()  # close the menu once a name is chosen
 
         text_field = self.root.ids.entry_add_screen.ids.meal_name_input
         target = text_field.text + c
@@ -152,7 +199,7 @@ class CaloriesApp(MDApp):
 
         items = [
             {
-                "viewclass": "OneLineListItem",
+                "viewclass": "MDDropdownTextItem",
                 "text": name,
                 "on_release": lambda txt=name: _callback(txt),
             }
@@ -177,20 +224,17 @@ class CaloriesApp(MDApp):
     def on_submit_meal_entry(self, *args):
         name = self.root.ids.entry_add_screen.ids.meal_name_input.text
         portion = self.root.ids.entry_add_screen.ids.grams_input.text
-        entry_date = self.root.ids.entry_add_screen.ids.date_input.text.splitlines()[-1]
+        entry_date = get_label(self.root.ids.entry_add_screen.ids.date_input).splitlines()[-1]
         dialog = None
         with FoodDB() as mdb:
             names = mdb.get_all_food_names()
         if name not in names:
 
             def open_plus_dialog(*_):
-                print(_)
                 dialog.dismiss()
                 d = FoodAddDialog(self)
-                d.food_name.text, d.title = (
-                    name,
-                    f'"{name}" not in Foods, Please add it below:',
-                )
+                d.food_name.text = name
+                d.headline.text = f'"{name}" not in Foods, Please add it below:'
                 d.open()
 
             def start_search(*_):
@@ -198,16 +242,13 @@ class CaloriesApp(MDApp):
                 self.on_search_food_pressed(query=name)
 
             dialog = MDDialog(
-                title=f'"{name}" not in Foods',
-                text="Try One of the options below:",
-                buttons=[
-                    MDFillRoundFlatIconButton(
-                        text="Search", icon="magnify", on_press=start_search
-                    ),
-                    MDFillRoundFlatIconButton(
-                        text="Add new", icon="plus", on_press=open_plus_dialog
-                    ),
-                ],
+                MDDialogHeadlineText(text=f'"{name}" not in Foods'),
+                MDDialogSupportingText(text="Try One of the options below:"),
+                MDDialogButtonContainer(
+                    Widget(),
+                    _dialog_button("Search", start_search, icon="magnify"),
+                    _dialog_button("Add new", open_plus_dialog, icon="plus"),
+                ),
             )
             dialog.open()
         else:
@@ -227,21 +268,12 @@ class CaloriesApp(MDApp):
                 toast(f"Removed {len(names)} Food/s")
 
         dialog = MDDialog(
-            text=f"Are you sure you want to delete {len(names)} rows?",
-            buttons=[
-                MDFlatButton(
-                    text="CANCEL",
-                    theme_text_color="Custom",
-                    text_color=self.theme_cls.primary_color,
-                    on_press=lambda *a, **k: dialog.dismiss(),
-                ),
-                MDFlatButton(
-                    text="DELETE",
-                    theme_text_color="Custom",
-                    text_color=self.theme_cls.primary_color,
-                    on_press=remove,
-                ),
-            ],
+            MDDialogSupportingText(text=f"Are you sure you want to delete {len(names)} rows?"),
+            MDDialogButtonContainer(
+                Widget(),
+                _dialog_button("CANCEL", lambda *a: dialog.dismiss()),
+                _dialog_button("DELETE", remove),
+            ),
         )
         dialog.open()
 
@@ -250,19 +282,24 @@ class CaloriesApp(MDApp):
         """Helper function for binding a button with a date it displays.
         Preferably the text of the button should be set to "Date:" in .kv file."""
 
-        def got_date(_, _date, *a, **k):
-            button.text = button.text.splitlines()[0] + "\n" + _date.isoformat()
+        def got_date(instance, *a, **k):
+            dates = instance.get_date()
+            if dates:
+                set_label(button, get_label(button).splitlines()[0] + "\n" + dates[0].isoformat())
+            instance.dismiss()
 
         if is_limited:
             with MealEntryDB() as me_db:
                 first, last = me_db.get_first_last_dates()
             if first == last:
                 first -= timedelta(days=1)
-            picker = MDDatePicker(min_date=first, max_date=last)
+            picker = MDModalDatePicker(min_date=first, max_date=last)
         else:
-            picker = MDDatePicker()
+            picker = MDModalDatePicker()
 
-        picker.bind(on_save=got_date)
+        # MDModalDatePicker's OK/Cancel only fire events; they don't close the
+        # dialog, so dismiss it ourselves.
+        picker.bind(on_ok=got_date, on_cancel=lambda inst, *a: inst.dismiss())
         picker.open()
 
     def set_trends_date_range(self, days_back: int):
@@ -271,23 +308,20 @@ class CaloriesApp(MDApp):
         start_date = end_date - timedelta(days=days_back)
         start_button = self.root.ids.trends_screen.ids.trend_start_date_button
         end_button = self.root.ids.trends_screen.ids.trend_end_date_button
-        start_button.text = "\n".join(
-            (start_button.text.splitlines()[0], start_date.isoformat())
+        set_label(
+            start_button,
+            "\n".join((get_label(start_button).splitlines()[0], start_date.isoformat())),
         )
-        end_button.text = "\n".join(
-            (end_button.text.splitlines()[0], end_date.isoformat())
+        set_label(
+            end_button, "\n".join((get_label(end_button).splitlines()[0], end_date.isoformat()))
         )
 
     def generate_trend(self, *args, **kwargs):
         # -- Getting The relevant entries
-        start_date = (
-            self.root.ids.trends_screen.ids.trend_start_date_button.text.splitlines()[
-                -1
-            ]
-        )
-        end_date = (
-            self.root.ids.trends_screen.ids.trend_end_date_button.text.splitlines()[-1]
-        )
+        start_date = get_label(
+            self.root.ids.trends_screen.ids.trend_start_date_button
+        ).splitlines()[-1]
+        end_date = get_label(self.root.ids.trends_screen.ids.trend_end_date_button).splitlines()[-1]
 
         with MealEntryDB() as me_db:
             entries = me_db.get_entries_between_dates(str(start_date), str(end_date))
@@ -331,11 +365,7 @@ class CaloriesApp(MDApp):
     def show_theme_picker(self, *args, **kwargs):
 
         def _set_theme(*a, **k):
-            config.set_theme(
-                self.theme_cls.theme_style,
-                self.theme_cls.primary_palette,
-                self.theme_cls.accent_palette,
-            )
+            config.set_theme(self.theme_cls.theme_style, self.theme_cls.primary_palette)
 
         theme_dialog = MDThemePicker()
         theme_dialog.bind(on_dismiss=_set_theme)
@@ -351,13 +381,12 @@ class CaloriesApp(MDApp):
 
                 target = f"{fl}/Calorie_Counting_{dt.now():%F}.xlsx"
                 dialog = MDDialog(
-                    text=f"Are you sure you want to Save:\n{target}?",
-                    buttons=[
-                        MDFlatButton(
-                            text="CANCEL", on_press=lambda *a_, **k_: dialog.dismiss()
-                        ),
-                        MDFlatButton(text="SAVE", on_press=_save),
-                    ],
+                    MDDialogSupportingText(text=f"Are you sure you want to Save:\n{target}?"),
+                    MDDialogButtonContainer(
+                        Widget(),
+                        _dialog_button("CANCEL", lambda *a_: dialog.dismiss()),
+                        _dialog_button("SAVE", _save),
+                    ),
                     on_dismiss=lambda *a_: file_manager.close(),
                 )
                 dialog.open()
@@ -372,13 +401,12 @@ class CaloriesApp(MDApp):
                     xlsx.import_excel(fl)
 
                 dialog = MDDialog(
-                    text=f"Are you sure you want to Load:\n{fl}?",
-                    buttons=[
-                        MDFlatButton(
-                            text="CANCEL", on_press=lambda *a_, **k_: dialog.dismiss()
-                        ),
-                        MDFlatButton(text="LOAD", on_press=_load),
-                    ],
+                    MDDialogSupportingText(text=f"Are you sure you want to Load:\n{fl}?"),
+                    MDDialogButtonContainer(
+                        Widget(),
+                        _dialog_button("CANCEL", lambda *a_: dialog.dismiss()),
+                        _dialog_button("LOAD", _load),
+                    ),
                     on_dismiss=lambda *a_: file_manager.close(),
                 )
                 dialog.open()
@@ -397,21 +425,20 @@ class CaloriesApp(MDApp):
         self._drop_down = MDDropdownMenu(
             items=[
                 {
-                    "viewclass": "OneLineIconListItem",
+                    "viewclass": "MDDropdownLeadingIconItem",
                     "text": "Save",
-                    "icon": "attachment",
+                    "leading_icon": "attachment",
                     "on_release": save_to_xlsx,
                 },
                 {
-                    "viewclass": "OneLineIconListItem",
+                    "viewclass": "MDDropdownLeadingIconItem",
                     "text": "Import existing",
-                    "icon": "attachment",
+                    "leading_icon": "attachment",
                     "on_release": import_xlsx,
                 },
             ],
             position="center",
             caller=self.root.ids.top_app_bar,
-            width_mult=2.3,
         )
         self._drop_down.open()
 

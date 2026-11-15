@@ -1,7 +1,9 @@
 """This module holds simple utility functions."""
-from typing import Iterable
+
+from collections.abc import Iterable
+from datetime import date
+from datetime import datetime as dt
 from difflib import SequenceMatcher
-from datetime import datetime as dt, date
 
 
 def similarity(a: str, b: str) -> float:
@@ -18,4 +20,4 @@ def sort_by_similarity(iterable: Iterable[str], target: str) -> Iterable:
 
 def str2iso(string) -> date:
     """Helper function turning strings to iso format date objects"""
-    return dt.strptime(string, '%Y-%m-%d').date()
+    return dt.strptime(string, "%Y-%m-%d").date()
